@@ -724,8 +724,9 @@ function buildInsufficientBalanceReply({
     if (isNewUser) {
       return (
         `${mention} account created ✅\n\n` +
-        "Your custodial Sui testnet wallet is ready.\n\n" +
-        "Fund it with dUSDC from your XPredict profile, then reply again:\n\n" +
+        "Your custodial Sui testnet wallet:\n" +
+        `${user.suiAddress}\n\n` +
+        "Fund it with dUSDC, then reply again:\n\n" +
         `YES ${amount} USDC\n` +
         `NO ${amount} USDC\n\n` +
         "Note: Already funded with Sui for gas"
@@ -766,7 +767,7 @@ function buildInsufficientBalanceReply({
 
 function buildAccountCreatedPrefix({ normalizedPlatform, user }) {
   if (normalizedPlatform === PLATFORMS.X) {
-    return "account created ✅\n\nYour custodial Sui testnet wallet is ready.\n\n";
+    return `account created ✅\n\nYour custodial Sui testnet wallet:\n${user.suiAddress}\n\n`;
   }
 
   return `account created ✅\n\nYour Sui testnet wallet:\n${user.suiAddress}\n\n`;
