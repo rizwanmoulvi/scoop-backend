@@ -147,6 +147,49 @@ async function discoverAndPostDeepbookMarket({
     });
 
     if (existing) {
+      const shouldRetryPosting =
+        existing.status === "OPEN" &&
+        ((process.env.X_BOT_ENABLED === "true" && !existing.xPostId) ||
+          !existing.xpSocialPostId);
+
+      if (shouldRetryPosting) {
+        const postResults = await socialBotService.postMarketToAllPlatforms({
+          market: existing,
+        });
+        const xpSocialPost = postResults.find(
+          (result) => result.platform === PLATFORMS.XP_SOCIAL,
+        );
+        const xPost = postResults.find((result) => result.platform === PLATFORMS.X);
+
+        const postedMarket = await prisma.market.update({
+          where: {
+            id: existing.id,
+          },
+          data: {
+            botPostedAt: new Date(),
+            xpSocialPostId: xpSocialPost?.postId || existing.xpSocialPostId,
+            xPostId: xPost?.postId || existing.xPostId,
+          },
+        });
+
+        await logBotActivity(
+          prisma,
+          "DEEPBOOK_MARKET_POST_RETRIED",
+          `DeepBook Predict market #${existing.marketNumber} post retried`,
+          {
+            marketId: existing.id,
+            marketNumber: existing.marketNumber,
+            posts: postResults.map((result) => ({
+              platform: result.platform,
+              postId: result.postId,
+              url: result.url,
+            })),
+          },
+        );
+
+        return { posted: true, reason: "RETRIED_EXISTING_MARKET", market: postedMarket };
+      }
+
       return { posted: false, reason: "DUPLICATE_MARKET", market: existing };
     }
 

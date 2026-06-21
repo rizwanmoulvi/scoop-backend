@@ -175,14 +175,31 @@ function createSocialBotService(prisma) {
   async function postMarketToAllPlatforms({ market }) {
     const results = [];
 
-    const xpSocialResult = await postMarketToPlatform({
-      market,
-      platform: PLATFORMS.XP_SOCIAL,
-    });
+    if (!market.xpSocialPostId) {
+      try {
+        const xpSocialResult = await postMarketToPlatform({
+          market,
+          platform: PLATFORMS.XP_SOCIAL,
+        });
 
-    results.push(xpSocialResult);
+        results.push(xpSocialResult);
+      } catch (error) {
+        await logBotActivity(
+          prisma,
+          "XP_SOCIAL_MARKET_POST_FAILED",
+          `Market #${market.marketNumber} failed to post to XP Social`,
+          {
+            marketId: market.id,
+            marketNumber: market.marketNumber,
+            error: error.message,
+            status: error.response?.status,
+            response: error.response?.data,
+          },
+        );
+      }
+    }
 
-    if (process.env.X_BOT_ENABLED === "true") {
+    if (process.env.X_BOT_ENABLED === "true" && !market.xPostId) {
       try {
         const xResult = await postMarketToPlatform({
           market,
