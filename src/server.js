@@ -111,24 +111,26 @@ function parseCookies(req) {
 }
 
 function setSessionCookie(res, sessionId) {
-  const isProduction = process.env.NODE_ENV === "production";
+  const useCrossSiteCookie =
+    process.env.NODE_ENV === "production" || frontendUrl.startsWith("https://");
 
   res.cookie(SESSION_COOKIE, sessionId, {
     httpOnly: true,
-    sameSite: isProduction ? "none" : "lax",
-    secure: isProduction,
+    sameSite: useCrossSiteCookie ? "none" : "lax",
+    secure: useCrossSiteCookie,
     maxAge: 30 * 24 * 60 * 60 * 1000,
     path: "/",
   });
 }
 
 function clearSessionCookie(res) {
-  const isProduction = process.env.NODE_ENV === "production";
+  const useCrossSiteCookie =
+    process.env.NODE_ENV === "production" || frontendUrl.startsWith("https://");
 
   res.clearCookie(SESSION_COOKIE, {
     httpOnly: true,
-    sameSite: isProduction ? "none" : "lax",
-    secure: isProduction,
+    sameSite: useCrossSiteCookie ? "none" : "lax",
+    secure: useCrossSiteCookie,
     path: "/",
   });
 }
@@ -471,12 +473,16 @@ app.get("/auth/x/callback", async (req, res) => {
 
 app.get("/auth/me", async (req, res) => {
   try {
+    const hasSessionCookie = Boolean(parseCookies(req)[SESSION_COOKIE]);
     const user = await getSessionUser(req);
 
     if (!user) {
       return res.json({
         success: true,
         user: null,
+        session: {
+          hasSessionCookie,
+        },
       });
     }
 
@@ -486,6 +492,9 @@ app.get("/auth/me", async (req, res) => {
       success: true,
       user: serializePublicUser(user),
       balances,
+      session: {
+        hasSessionCookie,
+      },
     });
   } catch (error) {
     console.error(error);
