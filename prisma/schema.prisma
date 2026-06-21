@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+
+  platform      Platform
+  platformUserId String
+  username      String
+
+  walletAddress String   @unique
+  demoBalance   Decimal  @default(100)
+  createdAt     DateTime @default(now())
+
+  suiAddress          String? @unique
+  suiPrivateKey       String?
+  suiPublicKey        String?
+  walletProvider      String  @default("BACKEND_CUSTODIAL_TESTNET")
+  cryptoWalletCreated Boolean @default(false)
+
+  lastDusdcBalance String?
+  lastDusdcCheckedAt DateTime?
+  predictManagerId String?
+
+  orders        Order[]
+
+  @@unique([platform, platformUserId])
+  @@unique([platform, username])
+}
+
+model Market {
+  id            String       @id @default(uuid())
+  marketNumber  Int          @unique
+  question      String
+  asset         String
+  targetPrice   Decimal
+  expiryTime    DateTime
+  yesPrice      Decimal
+  noPrice       Decimal
+  status        MarketStatus @default(OPEN)
+  result        Outcome?
+  xPostId       String?      @unique
+  redditPostId  String?      @unique
+  redditSubreddit String?
+  createdAt     DateTime     @default(now())
+
+  xpSocialPostId         String?  @unique
+  xpSocialResultPosted   Boolean @default(false)
+  xpSocialResultReplyId  String?
+
+  resolvedPrice Decimal?
+  resolvedAt    DateTime?
+  resultPost    String?
+
+  marketType      String   @default("MANUAL")
+  referencePrice  Decimal?
+
+  source               String   @default("XPREDICT")
+  predictOracleId      String?
+  predictExpiry        DateTime?
+  predictStrike        Decimal?
+  predictDirection     String?
+  predictMarketType    String?
+  predictMarketKeyJson Json?
+  predictServerPayload Json?
+  botPostedAt          DateTime?
+  botPostReason        String?
+  oracleStatus         String?
+  settlementStatus     String?
+
+  orders        Order[]
+
+  @@unique([predictOracleId, predictStrike, predictDirection])
+}
+
+model ProcessedSocialComment {
+  id                String   @id @default(uuid())
+  platform          Platform
+  platformCommentId String
+  status            String
+  replied           Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@unique([platform, platformCommentId])
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  userId          String
+  marketId        String
+  side            Outcome
+  amount          Decimal
+  entryPrice      Decimal
+  potentialPayout Decimal
+  status          OrderStatus @default(PLACED)
+
+  sourcePlatform  Platform
+  sourcePostId    String?
+  sourceCommentId String
+
+  fundingStatus     String   @default("NOT_FUNDED")
+  escrowTxDigest    String?
+  escrowAddress     String?
+  escrowedAmountRaw String?
+
+  payoutStatus     String   @default("NOT_PAID")
+  payoutTxDigest   String?
+  payoutAmountRaw  String?
+  paidAt           DateTime?
+
+  predictManagerId       String?
+  predictOracleId        String?
+  predictExpiry          DateTime?
+  predictStrike          Decimal?
+  predictDirection       String?
+  predictMarketKeyJson   Json?
+  predictMintDigest      String?
+  predictRedeemDigest    String?
+  predictQuantity        String?
+  predictExecutionStatus String @default("NOT_STARTED")
+  predictRedeemStatus    String @default("NOT_STARTED")
+
+  createdAt       DateTime    @default(now())
+
+  user            User        @relation(fields: [userId], references: [id])
+  market          Market      @relation(fields: [marketId], references: [id])
+
+  @@unique([sourcePlatform, sourceCommentId])
+}
+
+enum MarketStatus {
+  OPEN
+  EXPIRED
+  RESOLVED
+  CANCELLED
+}
+
+enum Outcome {
+  YES
+  NO
+}
+
+enum Platform {
+  X
+  REDDIT
+  XP_SOCIAL
+}
+
+enum OrderStatus {
+  PLACED
+  WON
+  LOST
+  REFUNDED
+}
+
+model BotActivity {
+  id        String   @id @default(uuid())
+  type      String
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}

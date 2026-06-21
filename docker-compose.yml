@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: xpredict-postgres
+    environment:
+      POSTGRES_USER: xpredict
+      POSTGRES_PASSWORD: xpredict
+      POSTGRES_DB: xpredict
+    ports:
+      - "5432:5432"
+    volumes:
+      - xpredict_pg_data:/var/lib/postgresql/data
+
+volumes:
+  xpredict_pg_data:
