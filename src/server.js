@@ -57,7 +57,10 @@ const app = express();
 const prisma = new PrismaClient();
 const socialBotService = createSocialBotService(prisma);
 
-const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(
+  /\/+$/,
+  "",
+);
 const oauthStates = new Map();
 const sessions = new Map();
 const SESSION_COOKIE = "xpredict_session";
