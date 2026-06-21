@@ -16,6 +16,7 @@ const { logBotActivity } = require("../services/botActivity");
 const {
   postMarketResultToSocials,
 } = require("../services/postMarketResultToSocials");
+const { isSystemPaused } = require("../services/systemControl");
 
 function startDeepbookSettlementWorker(prisma) {
   if (process.env.DEEPBOOK_PREDICT_SETTLEMENT_ENABLED === "false") {
@@ -31,6 +32,10 @@ function startDeepbookSettlementWorker(prisma) {
   const suiClient = createSuiClient();
 
   cron.schedule(cronExpression, async () => {
+    if (isSystemPaused()) {
+      return;
+    }
+
     await settleResolvedDeepbookMarkets({
       prisma,
       client,

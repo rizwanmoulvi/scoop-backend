@@ -4,6 +4,7 @@ const { generateMarketPost } = require("../utils/generateMarketPost");
 const { createSocialBotService } = require("../services/socialBotService");
 const { logBotActivity } = require("../services/botActivity");
 const { PLATFORMS } = require("../utils/platform");
+const { isSystemPaused } = require("../services/systemControl");
 
 function startAutoBtcMarketWorker(prisma) {
   if (process.env.LEGACY_AUTO_BTC_MARKETS_ENABLED !== "true") {
@@ -15,6 +16,10 @@ function startAutoBtcMarketWorker(prisma) {
 
   // Runs every minute. Creates markets only at minute 00/15/30/45.
   cron.schedule("* * * * *", async () => {
+    if (isSystemPaused()) {
+      return;
+    }
+
     try {
       const now = new Date();
       const minute = now.getUTCMinutes();

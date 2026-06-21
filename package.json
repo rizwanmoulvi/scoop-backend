@@ -4,7 +4,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "system:pause": "node src/scripts/system-control.js pause",
+    "system:resume": "node src/scripts/system-control.js resume",
+    "system:status": "node src/scripts/system-control.js status"
   },
   "keywords": [],
   "author": "",

@@ -45,6 +45,13 @@ const {
   startMarketResolutionWorker,
 } = require("./workers/marketResolutionWorker");
 const { logBotActivity } = require("./services/botActivity");
+const {
+  getSystemStatus,
+  pauseSystem,
+  requireSystemControl,
+  restoreSystemControlFromDatabase,
+  resumeSystem,
+} = require("./services/systemControl");
 
 const app = express();
 const prisma = new PrismaClient();
@@ -101,20 +108,24 @@ function parseCookies(req) {
 }
 
 function setSessionCookie(res, sessionId) {
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.cookie(SESSION_COOKIE, sessionId, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: isProduction ? "none" : "lax",
+    secure: isProduction,
     maxAge: 30 * 24 * 60 * 60 * 1000,
     path: "/",
   });
 }
 
 function clearSessionCookie(res) {
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.clearCookie(SESSION_COOKIE, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: isProduction ? "none" : "lax",
+    secure: isProduction,
     path: "/",
   });
 }
@@ -275,6 +286,72 @@ function serializePublicUser(user) {
 app.get("/", (req, res) => {
   res.json({
     message: "XPredict API running",
+  });
+});
+
+app.get("/system/status", (req, res) => {
+  res.json({
+    success: true,
+    system: getSystemStatus(),
+  });
+});
+
+app.post("/system/pause", async (req, res) => {
+  if (!requireSystemControl(req, res)) {
+    return;
+  }
+
+  const system = pauseSystem({
+    by: req.headers["x-system-control-by"] || "api",
+    pauseReason: req.body?.reason || "",
+  });
+
+  try {
+    await logBotActivity(
+      prisma,
+      "SYSTEM_PAUSED",
+      "Scoop automation paused",
+      {
+        ...system,
+        updatedAt: system.updatedAt.toISOString(),
+      },
+    );
+  } catch (error) {
+    console.warn("Failed to log system pause:", error.message);
+  }
+
+  res.json({
+    success: true,
+    system,
+  });
+});
+
+app.post("/system/resume", async (req, res) => {
+  if (!requireSystemControl(req, res)) {
+    return;
+  }
+
+  const system = resumeSystem({
+    by: req.headers["x-system-control-by"] || "api",
+  });
+
+  try {
+    await logBotActivity(
+      prisma,
+      "SYSTEM_RESUMED",
+      "Scoop automation resumed",
+      {
+        ...system,
+        updatedAt: system.updatedAt.toISOString(),
+      },
+    );
+  } catch (error) {
+    console.warn("Failed to log system resume:", error.message);
+  }
+
+  res.json({
+    success: true,
+    system,
   });
 });
 
@@ -1131,18 +1208,36 @@ const PORT = process.env.PORT || 5050;
 const ORDER_EXECUTION_MODE =
   process.env.ORDER_EXECUTION_MODE || "DEEPBOOK_PREDICT";
 
-startXpSocialCommentWorker(prisma);
-startXCommentWorker(prisma);
+async function startServer() {
+  try {
+    const system = await restoreSystemControlFromDatabase(prisma);
+    console.log(
+      system.paused
+        ? `Scoop automation restored as paused: ${system.reason || "no reason"}`
+        : "Scoop automation restored as running",
+    );
+  } catch (error) {
+    console.warn(
+      "Could not restore system control state from database:",
+      error.message,
+    );
+  }
 
-if (ORDER_EXECUTION_MODE === "DEEPBOOK_PREDICT") {
-  startDeepbookMarketDiscoveryWorker(prisma);
-  startDeepbookSettlementWorker(prisma);
-} else {
-  startMarketExpiryWorker(prisma);
-  startMarketResolutionWorker(prisma);
-  startAutoBtcMarketWorker(prisma);
+  startXpSocialCommentWorker(prisma);
+  startXCommentWorker(prisma);
+
+  if (ORDER_EXECUTION_MODE === "DEEPBOOK_PREDICT") {
+    startDeepbookMarketDiscoveryWorker(prisma);
+    startDeepbookSettlementWorker(prisma);
+  } else {
+    startMarketExpiryWorker(prisma);
+    startMarketResolutionWorker(prisma);
+    startAutoBtcMarketWorker(prisma);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
 }
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+startServer();

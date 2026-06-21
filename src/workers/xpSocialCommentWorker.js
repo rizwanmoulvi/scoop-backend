@@ -3,11 +3,16 @@ const { createXpSocialAdapter } = require("../adapters/xpSocialAdapter");
 const { handleSocialComment } = require("../services/handleSocialComment");
 const { logBotActivity } = require("../services/botActivity");
 const { PLATFORMS } = require("../utils/platform");
+const { isSystemPaused } = require("../services/systemControl");
 
 function startXpSocialCommentWorker(prisma) {
   const adapter = createXpSocialAdapter();
 
   cron.schedule("*/5 * * * * *", async () => {
+    if (isSystemPaused()) {
+      return;
+    }
+
     try {
       const markets = await prisma.market.findMany({
         where: {

@@ -6,6 +6,7 @@ const { payWinningOrders } = require("../services/payWinningOrders");
 const {
   postMarketResultToSocials,
 } = require("../services/postMarketResultToSocials");
+const { isSystemPaused } = require("../services/systemControl");
 
 function startMarketResolutionWorker(prisma) {
   if (process.env.LEGACY_MARKET_WORKERS_ENABLED !== "true") {
@@ -15,6 +16,10 @@ function startMarketResolutionWorker(prisma) {
 
   // Runs every 15 seconds for local testing
   cron.schedule("*/15 * * * * *", async () => {
+    if (isSystemPaused()) {
+      return;
+    }
+
     try {
       const expiredMarkets = await prisma.market.findMany({
         where: {

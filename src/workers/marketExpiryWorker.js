@@ -1,5 +1,6 @@
 const cron = require("node-cron");
 const { logBotActivity } = require("../services/botActivity");
+const { isSystemPaused } = require("../services/systemControl");
 
 function startMarketExpiryWorker(prisma) {
   if (process.env.LEGACY_MARKET_WORKERS_ENABLED !== "true") {
@@ -8,6 +9,10 @@ function startMarketExpiryWorker(prisma) {
   }
 
   cron.schedule("*/10 * * * * *", async () => {
+    if (isSystemPaused()) {
+      return;
+    }
+
     try {
       const now = new Date();
 

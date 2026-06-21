@@ -12,6 +12,7 @@ const {
 const { createSocialBotService } = require("../services/socialBotService");
 const { logBotActivity } = require("../services/botActivity");
 const { PLATFORMS } = require("../utils/platform");
+const { isSystemPaused } = require("../services/systemControl");
 
 function startDeepbookMarketDiscoveryWorker(prisma) {
   if (process.env.DEEPBOOK_PREDICT_AUTODISCOVERY_ENABLED === "false") {
@@ -25,6 +26,10 @@ function startDeepbookMarketDiscoveryWorker(prisma) {
   const socialBotService = createSocialBotService(prisma);
 
   cron.schedule(cronExpression, async () => {
+    if (isSystemPaused()) {
+      return;
+    }
+
     await discoverAndPostDeepbookMarket({
       prisma,
       client,

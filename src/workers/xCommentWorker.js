@@ -3,6 +3,7 @@ const { createXAdapter } = require("../adapters/xAdapter");
 const { handleSocialComment } = require("../services/handleSocialComment");
 const { logBotActivity } = require("../services/botActivity");
 const { PLATFORMS } = require("../utils/platform");
+const { isSystemPaused } = require("../services/systemControl");
 
 function startXCommentWorker(prisma) {
   if (process.env.X_BOT_ENABLED !== "true") {
@@ -14,6 +15,10 @@ function startXCommentWorker(prisma) {
   const intervalSeconds = Number(process.env.X_COMMENT_POLL_INTERVAL_SECONDS || 30);
 
   cron.schedule(`*/${intervalSeconds} * * * * *`, async () => {
+    if (isSystemPaused()) {
+      return;
+    }
+
     try {
       const markets = await prisma.market.findMany({
         where: {
